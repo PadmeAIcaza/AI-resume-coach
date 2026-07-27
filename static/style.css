@@ -104,3 +104,49 @@ button:hover {
 .back-link:hover {
     text-decoration: underline;
 }
+
+.result-card h2 {
+    margin-top: 0;
+}
+
+.score-card {
+    border-left: 5px solid #4b63d3;
+}
+
+.tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0;
+    list-style: none;
+}
+
+.tag-list li {
+    padding: 7px 11px;
+    border-radius: 999px;
+    background-color: #e5f4eb;
+    color: #17633a;
+}
+
+.tag-list.missing li {
+    background-color: #fff0dc;
+    color: #8a4b00;
+}
+
+.result-card li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.bullet-rewrite {
+    margin-top: 14px;
+    padding: 14px;
+    border-left: 4px solid #4b63d3;
+    border-radius: 6px;
+    background-color: #ffffff;
+}
+
+.bullet-rewrite p {
+    margin: 5px 0;
+    line-height: 1.5;
+}

@@ -2,65 +2,68 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resume Analysis</title>
-
-    <link
-        rel="stylesheet"
-        href="{{ url_for('static', filename='style.css') }}"
-    >
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-
 <body>
-
     <main class="container">
-
         <h1>Resume Analysis</h1>
 
-        <section class="result-card">
+        <section class="result-card score-card">
             <h2>Match Score</h2>
-
-            <p class="score">
-                {{ feedback.match_score }}%
-            </p>
+            <p class="score">{{ feedback.match_score }}%</p>
+            <p>{{ feedback.summary }}</p>
         </section>
 
         <section class="result-card">
             <h2>Matching Skills</h2>
-
-            <ul>
-                {% for skill in feedback.matching_skills %}
-                    <li>{{ skill }}</li>
-                {% endfor %}
-            </ul>
+            {% if feedback.matching_skills %}
+                <ul class="tag-list">
+                    {% for skill in feedback.matching_skills %}
+                        <li>{{ skill }}</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No clearly supported matching skills were found.</p>
+            {% endif %}
         </section>
 
         <section class="result-card">
-            <h2>Missing Skills</h2>
-
-            <ul>
-                {% for skill in feedback.missing_skills %}
-                    <li>{{ skill }}</li>
-                {% endfor %}
-            </ul>
+            <h2>Missing Keywords</h2>
+            {% if feedback.missing_keywords %}
+                <ul class="tag-list missing">
+                    {% for keyword in feedback.missing_keywords %}
+                        <li>{{ keyword }}</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No important missing keywords were identified.</p>
+            {% endif %}
         </section>
 
         <section class="result-card">
-            <h2>Suggestion</h2>
-
-            <p>{{ feedback.suggestion }}</p>
+            <h2>Recommended Improvements</h2>
+            <ol>
+                {% for improvement in feedback.improvements %}
+                    <li>{{ improvement }}</li>
+                {% endfor %}
+            </ol>
         </section>
 
-        <a class="back-link" href="{{ url_for('home') }}">
-            Analyze Another Resume
-        </a>
+        <section class="result-card">
+            <h2>Stronger Bullet Points</h2>
+            {% for bullet in feedback.stronger_bullet_points %}
+                <article class="bullet-rewrite">
+                    <p><strong>Original:</strong> {{ bullet.original }}</p>
+                    <p><strong>Improved:</strong> {{ bullet.improved }}</p>
+                </article>
+            {% else %}
+                <p>No resume bullet points were available to rewrite.</p>
+            {% endfor %}
+        </section>
 
+        <a class="back-link" href="{{ url_for('home') }}">Analyze Another Resume</a>
     </main>
-
 </body>
 </html>
