@@ -5,11 +5,14 @@ from flask import Flask, render_template, request
 from google import genai
 from google.genai import types # configure gemini requests
 from pydantic import BaseModel, Field # define structured AI output with validation, add validation rules and descriptions to field models
+from werkzeug.exceptions import RequestEntityTooLarge # werkzeug is used by Flask for things like file uploads
+from pdf_utils import ResumeUploadError, extract_pdf_text # this py file receives the PDF file
 
 load_dotenv()
 
 # creates the web application
 app = Flask(__name__) # __name__ tells Flask where the app file is located
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024 # 5,242,880 bytes (RequestEntityTooLarge)
 
 MAX_INPUT_LENGTH = 30000
 
@@ -32,6 +35,7 @@ class ResumeAnalysis(BaseModel):
     improvements: List[str] = Field(description="Specific, prioritized improvements tailored to this job.")
     # list of (original, improved). Needed to not loose the original bullet.
     stronger_bullet_points: List[BulletPoint] = Field(description="Two to five stronger rewrites of existing resume bullet points.")
+
 
 # heart of the entire project. This is the function that talks with Gemini
 def analyze_with_gemini(resume_text: str, job_description: str) -> ResumeAnalysis: # when this function finishes, it will return a ResumeAnalysis object
@@ -87,29 +91,49 @@ JOB DESCRIPTION:
 def home():
     return render_template("index.html")
 
-
+# sends to the results page and gets the resume and job description (POST)
 @app.route("/analyze", methods=["POST"])
 def analyze():
+    # request.form.get reads the resume/job description text (.form.get only looks at the HTML form data and "resume"/"job_description" must match the name attribute in the HTML form
     resume_text = request.form.get("resume", "").strip()
     job_description = request.form.get("job_description", "").strip()
+    # reads the resume file uploaded into the app
+    resume_file = request.files.get("resume_file")
+
+    # if all entries (especially resume_text and resume_file entries) are non-empty (filling both is not allowed)
+    if resume_text and resume_file and resume_file.filename:
+        return render_template("index.html", error="Use either pasted resume text or a PDF upload, not both.", resume=resume_text, job_description=job_description)
+
+    if resume_file and resume_file.filename:
+        try:
+            resume_text = extract_pdf_text(resume_file) # extract pdf text (may give an error)
+        except ResumeUploadError as exc: # if it is empty, show exception
+            return render_template("index.html", error=str(exc), resume=resume_text, job_description=job_description)
 
     if not resume_text or not job_description:
-        return render_template("index.html", error="Please enter both your resume and the job description.", resume=resume_text, job_description=job_description)
+        return render_template("index.html", error="Please provide a resume and a job description.", resume=resume_text, job_description=job_description)
 
+    # checks if the input is within the bounds (less than 30000)
     if len(resume_text) > MAX_INPUT_LENGTH or len(job_description) > MAX_INPUT_LENGTH:
         return render_template("index.html", error="Each field must be 30,000 characters or fewer.", resume=resume_text, job_description=job_description)
 
     try:
+        # calls function that returns ResumeAnalysis and is stored in feedback
         feedback = analyze_with_gemini(resume_text, job_description)
-    except Exception as exc:
+    except Exception as exc: # if anything inside try fails, give an error
         app.logger.exception("Resume analysis failed")
         message = (
             str(exc)
-            if isinstance(exc, RuntimeError)
-            else "Gemini could not analyze the resume right now. Please try again.")
+            if isinstance(exc, RuntimeError) # if this is a runtime error
+            else "Gemini could not analyze the resume right now. Please try again.") # else, print generic message
         return render_template("index.html", error=message, resume=resume_text, job_description=job_description)
 
     return render_template("results.html", feedback=feedback)
+
+# if the file is too large
+@app.errorhandler(RequestEntityTooLarge)
+def handle_file_too_large(_error):
+    return render_template("index.html", error="The upload is too large. PDF files must be 5 MB or smaller."), 413 # HTTP status code "payload is too large"
 
 
 if __name__ == "__main__":

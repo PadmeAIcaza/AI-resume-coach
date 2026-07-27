@@ -51,9 +51,43 @@ textarea {
     resize: vertical;
 }
 
-textarea:focus {
+textarea:focus,
+input[type="file"]:focus {
     border-color: #4b63d3;
     outline: none;
+}
+
+input[type="file"] {
+    width: 100%;
+    padding: 14px;
+    border: 1px dashed #9aa4d6;
+    border-radius: 8px;
+    background-color: #f8f9ff;
+    font: inherit;
+}
+
+.field-help {
+    margin: 8px 0 18px;
+    color: #666666;
+    font-size: 14px;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 18px 0;
+    color: #777777;
+    font-size: 14px;
+    text-transform: uppercase;
+}
+
+.divider::before,
+.divider::after {
+    height: 1px;
+    flex: 1;
+    background-color: #dddddd;
+    content: "";
 }
 
 button {

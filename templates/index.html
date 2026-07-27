@@ -25,16 +25,28 @@
             <p class="error-message">{{ error }}</p>
         {% endif %}
 
-        <form action="{{ url_for('analyze') }}" method="POST">
+        <form action="{{ url_for('analyze') }}" method="POST" enctype="multipart/form-data">
             <div class="form-group">
-                <label for="resume">Resume</label>
+                <label for="resume_file">Upload Resume PDF</label>
+                <input
+                    id="resume_file"
+                    name="resume_file"
+                    type="file"
+                    accept=".pdf,application/pdf"
+                >
+                <p class="field-help">
+                    PDF only, up to 5 MB and 20 pages. Scanned PDFs need OCR first.
+                </p>
+
+                <div class="divider"><span>or paste text</span></div>
+
+                <label for="resume">Resume Text</label>
                 <textarea
                     id="resume"
                     name="resume"
                     rows="12"
                     maxlength="30000"
                     placeholder="Paste your resume here..."
-                    required
                 >{{ resume|default('', true) }}</textarea>
             </div>
 
