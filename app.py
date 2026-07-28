@@ -1,11 +1,12 @@
 import os
-from typing import List
-from dotenv import load_dotenv
+from typing import List # used for setting data types
+from dotenv import load_dotenv # loads environment variables
 from flask import Flask, render_template, request
 from google import genai
 from google.genai import types # configure gemini requests
 from pydantic import BaseModel, Field # define structured AI output with validation, add validation rules and descriptions to field models
 from werkzeug.exceptions import RequestEntityTooLarge # werkzeug is used by Flask for things like file uploads
+from interview_coach import InterviewCoach
 from pdf_utils import ResumeUploadError, extract_pdf_text # this py file receives the PDF file
 
 load_dotenv()
@@ -36,15 +37,32 @@ class ResumeAnalysis(BaseModel):
     # list of (original, improved). Needed to not loose the original bullet.
     stronger_bullet_points: List[BulletPoint] = Field(description="Two to five stronger rewrites of existing resume bullet points.")
 
-
-# heart of the entire project. This is the function that talks with Gemini
-def analyze_with_gemini(resume_text: str, job_description: str) -> ResumeAnalysis: # when this function finishes, it will return a ResumeAnalysis object
+def _gemini_client():
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("Gemini is not configured. Add GEMINI_API_KEY to your .env file.")
+    return genai.Client(api_key=api_key)
 
-    # connects to Google's AI servers. Now "client" can send requests
-    client = genai.Client(api_key=api_key)
+
+def _generate_structured(prompt: str, schema: type[BaseModel], temperature: float = 0.2):
+    # keep a strong reference to the client until the request has completed.
+    client = _gemini_client()
+    # everything inside the parentheses tells Gemini what to do. It tells the model of Gemini that is using, it sends the prompt, and configures how Gemini should answer (temperature=0.2 controls randomness -> 0.0 is very predictble, 1.0 is very creative)
+    # MIME type tells Gemini that we want a response in a JSON format (that looks like our ResumeAnalysis) so it doesnt just send "nice resume".
+    # Response schema is basically handing the blueprint of ResumeAnalysis to Gemini. "Return data exaclty like this" instead of making up its own format
+    response = client.models.generate_content(
+        model=os.getenv("GEMINI_MODEL", "gemini-3.6-flash"),
+        contents=prompt,
+        config=types.GenerateContentConfig(temperature=temperature, response_mime_type="application/json", response_schema=schema))
+    if response.parsed:
+        return response.parsed
+    if response.text:
+        return schema.model_validate_json(response.text)
+    raise RuntimeError("Gemini returned an empty response. Please try again.")
+
+
+# heart of the entire project. This is the function that talks with Gemini
+def analyze_with_gemini(resume_text: str, job_description: str) -> ResumeAnalysis: # when this function finishes, it will return a ResumeAnalysis object
     # prompt engineeringgg !!
     prompt = f"""
 You are an expert resume coach and applicant-tracking-system analyst.
@@ -70,21 +88,7 @@ JOB DESCRIPTION:
 ---END JOB DESCRIPTION---
 """
 
-    # everything inside the parentheses tells Gemini what to do. It tells the model of Gemini that is using, it sends the prompt, and configures how Gemini should answer (temperature=0.2 controls randomness -> 0.0 is very predictble, 1.0 is very creative)
-    # MIME type tells Gemini that we want a response in a JSON format (that looks like our ResumeAnalysis) so it doesnt just send "nice resume".
-    # Response schema is basically handing the blueprint of ResumeAnalysis to Gemini. "Return data exaclty like this" instead of making up its own format
-    response = client.models.generate_content(
-        model=os.getenv("GEMINI_MODEL", "gemini-3.6-flash"), contents=prompt,
-        config=types.GenerateContentConfig(temperature=0.2, response_mime_type="application/json", response_schema=ResumeAnalysis)
-    )
-
-    # if Gemini SDK converts the JSON into a ResumeAnalysis object, return it.
-    if response.parsed:
-        return response.parsed
-    # if Gemini SDK returns JSON as plain text instead, then turn the JSON text into a ResumeAnalysis object and return it
-    if response.text:
-        return ResumeAnalysis.model_validate_json(response.text)
-    raise RuntimeError("Gemini returned an empty response. Please try again.")
+    return _generate_structured(prompt, ResumeAnalysis)
 
 
 @app.route("/")
@@ -128,7 +132,60 @@ def analyze():
             else "Gemini could not analyze the resume right now. Please try again.") # else, print generic message
         return render_template("index.html", error=message, resume=resume_text, job_description=job_description)
 
-    return render_template("results.html", feedback=feedback)
+    return render_template("results.html", feedback=feedback, resume=resume_text, job_description=job_description)
+
+
+def _valid_coach_inputs(resume_text: str, job_description: str) -> str | None:
+    if not resume_text or not job_description:
+        return "Resume and job description context are required."
+    if len(resume_text) > MAX_INPUT_LENGTH or len(job_description) > MAX_INPUT_LENGTH:
+        return "Each source field must be 30,000 characters or fewer."
+    return None
+
+
+@app.route("/interview/questions", methods=["POST"])
+def interview_questions():
+    # request.form.get reads the resume/job description text (.form.get only looks at the HTML form data and "resume"/"job_description" must match the name attribute in the HTML form
+    resume_text = request.form.get("resume", "").strip()
+    job_description = request.form.get("job_description", "").strip()
+    # checks if the input is within the bounds (less than 30000)
+    error = _valid_coach_inputs(resume_text, job_description)
+    if error:
+        return render_template("interview.html", error=error), 400
+
+    try:
+        question_set = InterviewCoach().generate_questions(resume_text, job_description)
+    except Exception as exc:
+        app.logger.exception("Interview question generation failed")
+        message = str(exc) if isinstance(exc, RuntimeError) else "Questions could not be generated right now. Please try again."
+        return render_template("interview.html", error=message, resume=resume_text, job_description=job_description)
+
+    return render_template("interview.html", questions=question_set.questions, resume=resume_text, job_description=job_description)
+
+
+@app.route("/interview/feedback", methods=["POST"])
+def interview_feedback():
+    # request.form.get reads the resume/job/question/answer description text (.form.get only looks at the HTML form data and "resume"/"job_description" must match the name attribute in the HTML form
+    resume_text = request.form.get("resume", "").strip()
+    job_description = request.form.get("job_description", "").strip()
+    question = request.form.get("question", "").strip()
+    answer = request.form.get("answer", "").strip()
+    error = _valid_coach_inputs(resume_text, job_description)
+    if not error and (not question or not answer):
+        error = "Choose a question and enter an answer before requesting feedback."
+    if not error and (len(question) > 2000 or len(answer) > 10000):
+        error = "The question or answer is too long."
+    if error:
+        return render_template("interview.html", error=error, resume=resume_text, job_description=job_description, selected_question=question, answer=answer), 400
+
+    try:
+        feedback = InterviewCoach().evaluate_answer(resume_text, job_description, question, answer)
+    except Exception as exc:
+        app.logger.exception("Interview answer evaluation failed")
+        message = str(exc) if isinstance(exc, RuntimeError) else "Your answer could not be evaluated right now. Please try again."
+        return render_template("interview.html", error=message, resume=resume_text, job_description=job_description, selected_question=question, answer=answer)
+
+    return render_template("interview.html", feedback=feedback, resume=resume_text, job_description=job_description, selected_question=question, answer=answer)
 
 # if the file is too large
 @app.errorhandler(RequestEntityTooLarge)

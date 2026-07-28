@@ -63,6 +63,16 @@
             {% endfor %}
         </section>
 
+        <section class="result-card interview-cta">
+            <h2>Stage 4: Interview Coach</h2>
+            <p>Practice questions tailored to this resume and job, then receive detailed feedback on your answer.</p>
+            <form action="{{ url_for('interview_questions') }}" method="POST">
+                <input type="hidden" name="resume" value="{{ resume }}">
+                <input type="hidden" name="job_description" value="{{ job_description }}">
+                <button type="submit">Generate Interview Questions</button>
+            </form>
+        </section>
+
         <a class="back-link" href="{{ url_for('home') }}">Analyze Another Resume</a>
     </main>
 </body>

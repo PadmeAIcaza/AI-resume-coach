@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Coach</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="container">
+        <h1>Interview Coach</h1>
+        <p class="subtitle">Practice a tailored question and get actionable feedback.</p>
+
+        {% if error %}
+            <p class="error-message">{{ error }}</p>
+        {% endif %}
+
+        {% if questions %}
+            <section class="result-card">
+                <h2>Choose a Question</h2>
+                <div class="question-list">
+                    {% for item in questions %}
+                        <article class="question-card">
+                            <span class="question-category">{{ item.category }}</span>
+                            <h3>{{ item.question }}</h3>
+                            <p><strong>What it tests:</strong> {{ item.focus }}</p>
+                            <button type="button" class="secondary-button choose-question"
+                                    data-question="{{ item.question }}">Practice This Question</button>
+                        </article>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+
+        {% if questions or selected_question %}
+            <section class="result-card" id="answer-section">
+                <h2>Your Answer</h2>
+                <form action="{{ url_for('interview_feedback') }}" method="POST">
+                    <input type="hidden" name="resume" value="{{ resume }}">
+                    <input type="hidden" name="job_description" value="{{ job_description }}">
+                    <label for="question">Interview Question</label>
+                    <textarea id="question" name="question" rows="3" maxlength="2000"
+                              required>{{ selected_question|default('', true) }}</textarea>
+                    <label for="answer">Your Response</label>
+                    <textarea id="answer" name="answer" rows="10" maxlength="10000"
+                              placeholder="Type your interview answer here..." required>{{ answer|default('', true) }}</textarea>
+                    <button type="submit">Get Answer Feedback</button>
+                </form>
+            </section>
+        {% endif %}
+
+        {% if feedback %}
+            <section class="result-card">
+                <h2>Answer Feedback</h2>
+                <div class="feedback-grid">
+                    {% for label, dimension in [
+                        ('Relevance', feedback.relevance),
+                        ('Clarity', feedback.clarity),
+                        ('Technical Depth', feedback.technical_depth),
+                        ('STAR Format', feedback.star_format)
+                    ] %}
+                        <article class="feedback-dimension">
+                            <div class="dimension-heading">
+                                <h3>{{ label }}</h3>
+                                <span class="dimension-score">{{ dimension.score }}/5</span>
+                            </div>
+                            <div class="score-track" aria-label="{{ label }} score: {{ dimension.score }} out of 5">
+                                <span style="width: {{ dimension.score * 20 }}%"></span>
+                            </div>
+                            <p>{{ dimension.feedback }}</p>
+                        </article>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="result-card">
+                <h2>Areas to Improve</h2>
+                <ol>
+                    {% for area in feedback.areas_to_improve %}
+                        <li>{{ area }}</li>
+                    {% endfor %}
+                </ol>
+            </section>
+
+            <section class="result-card improved-answer">
+                <h2>Stronger Example Answer</h2>
+                <p>{{ feedback.improved_answer }}</p>
+            </section>
+        {% endif %}
+
+        <a class="back-link" href="{{ url_for('home') }}">Start With Another Resume</a>
+    </main>
+
+    <script>
+        document.querySelectorAll(".choose-question").forEach((button) => {
+            button.addEventListener("click", () => {
+                document.getElementById("question").value = button.dataset.question;
+                document.getElementById("answer-section").scrollIntoView({ behavior: "smooth" });
+                document.getElementById("answer").focus();
+            });
+        });
+    </script>
+</body>
+</html>
