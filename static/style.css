@@ -57,6 +57,15 @@ input[type="file"]:focus {
     outline: none;
 }
 
+input[type="password"],
+input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #cccccc;
+    border-radius: 8px;
+    font: inherit;
+}
+
 input[type="file"] {
     width: 100%;
     padding: 14px;
@@ -137,6 +146,90 @@ button:hover {
 
 .back-link:hover {
     text-decoration: underline;
+}
+
+.success-message {
+    padding: 12px;
+    border-radius: 8px;
+    background-color: #e5f4eb;
+    color: #17633a;
+}
+
+.data-link {
+    margin-top: 28px;
+}
+
+.history-button {
+    display: block;
+    margin-top: 20px;
+    padding: 13px;
+    border: 2px solid #4b63d3;
+    border-radius: 8px;
+    color: #4b63d3;
+    font-weight: bold;
+    text-align: center;
+    text-decoration: none;
+}
+
+.history-button:hover {
+    background: #eef1ff;
+}
+
+.history-entry {
+    padding: 14px 0;
+    border-bottom: 1px solid #e1e4ea;
+}
+
+.history-entry:last-child {
+    border-bottom: 0;
+}
+
+.history-entry p {
+    margin: 6px 0;
+    white-space: pre-wrap;
+}
+
+.data-actions {
+    display: grid;
+    gap: 20px;
+}
+
+.count-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    padding: 0;
+    list-style: none;
+}
+
+.count-list li {
+    padding: 12px;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.danger-card {
+    border: 1px solid #e7a8a8;
+    background: #fff7f7;
+}
+
+.danger-button {
+    margin-top: 14px;
+    background-color: #b42318;
+}
+
+.danger-button:hover {
+    background-color: #8f1c13;
+}
+
+.logout-form {
+    margin-top: 20px;
+}
+
+.logout-form button {
+    width: auto;
+    background: #687080;
+    font-size: 14px;
 }
 
 .result-card h2 {

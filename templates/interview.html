@@ -92,11 +92,29 @@
     </main>
 
     <script>
+        const practiceContext = {
+            resume: {{ resume|default('', true)|tojson }},
+            job_description: {{ job_description|default('', true)|tojson }},
+            csrf_token: {{ csrf_token|default('', true)|tojson }}
+        };
+
         document.querySelectorAll(".choose-question").forEach((button) => {
-            button.addEventListener("click", () => {
+            button.addEventListener("click", async () => {
                 document.getElementById("question").value = button.dataset.question;
                 document.getElementById("answer-section").scrollIntoView({ behavior: "smooth" });
                 document.getElementById("answer").focus();
+                try {
+                    await fetch({{ url_for('select_practice_question')|tojson }}, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            ...practiceContext,
+                            question: button.dataset.question
+                        })
+                    });
+                } catch (error) {
+                    console.error("Could not save practiced question.", error);
+                }
             });
         });
     </script>

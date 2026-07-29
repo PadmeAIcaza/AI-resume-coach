@@ -31,6 +31,12 @@ CREATE TABLE IF NOT EXISTS interview_questions (
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (job_description_id) REFERENCES job_descriptions(id) ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS practiced_questions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    interview_question_id INTEGER NOT NULL UNIQUE,
+    practiced_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (interview_question_id) REFERENCES interview_questions(id) ON DELETE CASCADE
+);
 CREATE TABLE IF NOT EXISTS user_answers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     interview_question_id INTEGER,
@@ -48,12 +54,22 @@ CREATE TABLE IF NOT EXISTS ai_feedback (
 );
 CREATE INDEX IF NOT EXISTS idx_resume_analyses_job ON resume_analyses(job_description_id);
 CREATE INDEX IF NOT EXISTS idx_interview_questions_job ON interview_questions(job_description_id);
+CREATE INDEX IF NOT EXISTS idx_practiced_questions_question ON practiced_questions(interview_question_id);
 CREATE INDEX IF NOT EXISTS idx_user_answers_question ON user_answers(interview_question_id);
 CREATE INDEX IF NOT EXISTS idx_ai_feedback_answer ON ai_feedback(user_answer_id);
 """
 # indexes help retrieval queries run much faster because that way SQLite doesnt have to scan the whole table
 
 class Database:
+    TABLES = (
+        "job_descriptions",
+        "resume_analyses",
+        "interview_questions",
+        "practiced_questions",
+        "user_answers",
+        "ai_feedback",
+    )
+
     def __init__(self, path: str | Path):
         self.path = Path(path)
 
@@ -139,3 +155,93 @@ class Database:
             answer_id = int(answer_cursor.lastrowid)
             feedback_cursor = connection.execute("INSERT INTO ai_feedback (user_answer_id, feedback_json) VALUES (?, ?)", (answer_id, self._json(feedback)))
             return answer_id, int(feedback_cursor.lastrowid)
+
+    def export_all(self) -> dict[str, list[dict[str, Any]]]:
+        exported: dict[str, list[dict[str, Any]]] = {}
+        with self.connect() as connection:
+            for table in self.TABLES:
+                rows = [dict(row) for row in connection.execute(
+                    f"SELECT * FROM {table} ORDER BY id"
+                ).fetchall()]
+                for row in rows:
+                    for field in ("analysis_json", "feedback_json"):
+                        if field in row:
+                            row[field.removesuffix("_json")] = json.loads(row.pop(field))
+                exported[table] = rows
+        return exported
+
+    def record_counts(self) -> dict[str, int]:
+        with self.connect() as connection:
+            return {
+                table: int(connection.execute(
+                    f"SELECT COUNT(*) FROM {table}"
+                ).fetchone()[0])
+                for table in self.TABLES
+            }
+
+    def mark_question_practiced(
+        self, resume_text: str, job_description: str, question: str
+    ) -> bool:
+        with self.connect() as connection:
+            row = connection.execute(
+                """SELECT iq.id
+                   FROM interview_questions AS iq
+                   JOIN job_descriptions AS jd ON jd.id = iq.job_description_id
+                   WHERE iq.resume_text = ? AND jd.content = ? AND iq.question = ?
+                   ORDER BY iq.id DESC LIMIT 1""",
+                (resume_text, job_description, question),
+            ).fetchone()
+            if row is None:
+                return False
+            connection.execute(
+                """INSERT INTO practiced_questions (interview_question_id)
+                   VALUES (?)
+                   ON CONFLICT(interview_question_id)
+                   DO UPDATE SET practiced_at = CURRENT_TIMESTAMP""",
+                (row["id"],),
+            )
+            return True
+
+    def history(self) -> dict[str, list[dict[str, Any]]]:
+        with self.connect() as connection:
+            job_descriptions = [
+                dict(row)
+                for row in connection.execute(
+                    """SELECT content, MAX(created_at) AS last_used_at
+                       FROM job_descriptions
+                       GROUP BY content
+                       ORDER BY last_used_at DESC"""
+                ).fetchall()
+            ]
+            practiced_questions = [
+                dict(row)
+                for row in connection.execute(
+                    """SELECT iq.question, iq.category, iq.focus,
+                              jd.content AS job_description,
+                              pq.practiced_at
+                       FROM practiced_questions AS pq
+                       JOIN interview_questions AS iq
+                         ON iq.id = pq.interview_question_id
+                       JOIN job_descriptions AS jd
+                         ON jd.id = iq.job_description_id
+                       ORDER BY pq.practiced_at DESC, pq.id DESC"""
+                ).fetchall()
+            ]
+        return {
+            "job_descriptions": job_descriptions,
+            "practiced_questions": practiced_questions,
+        }
+
+    def delete_all(self) -> int:
+        with self.connect() as connection:
+            deleted = sum(
+                int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+                for table in self.TABLES
+            )
+            for table in reversed(self.TABLES):
+                connection.execute(f"DELETE FROM {table}")
+            connection.execute(
+                "DELETE FROM sqlite_sequence WHERE name IN (?, ?, ?, ?, ?, ?)",
+                self.TABLES,
+            )
+        return deleted

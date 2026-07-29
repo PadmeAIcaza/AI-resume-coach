@@ -1,7 +1,9 @@
 import os
+import hmac
+import secrets
 from typing import List # used for setting data types
 from dotenv import load_dotenv # loads environment variables
-from flask import Flask, render_template, request
+from flask import Flask, abort, jsonify, render_template, request, session, url_for
 from google import genai
 from google.genai import types # configure gemini requests
 from pydantic import BaseModel, Field # define structured AI output with validation, add validation rules and descriptions to field models
@@ -16,6 +18,7 @@ load_dotenv()
 app = Flask(__name__) # __name__ tells Flask where the app file is located
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024 # 5,242,880 bytes (RequestEntityTooLarge)
 app.config["DATABASE"] = os.getenv("DATABASE_PATH", os.path.join(app.instance_path, "ai_resume.sqlite3"))
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY") or secrets.token_hex(32)
 database = Database(app.config["DATABASE"])
 database.initialize()
 
@@ -30,7 +33,8 @@ class BulletPoint(BaseModel):
 
 # this is the entire AI response
 class ResumeAnalysis(BaseModel):
-    # match score must be an int. Fields tells Gemini what the match score is, and that the minimum score is 0, maximum is 100. Everything sent by Gemini that is out of those bounds is invalid.
+    # match score must be an int. Fields tells Gemini what the match score is, and that the minimum score is 0, maximum is 100.
+    # everything sent by Gemini that is out of those bounds is invalid.
     match_score: int = Field(ge=0, le=100, description="Overall percentage match between the resume and job description.")
     # everything here must be sent as a string.
     summary: str = Field(description="A concise explanation of the match score.")
@@ -99,6 +103,67 @@ JOB DESCRIPTION:
 def home():
     return render_template("index.html")
 
+
+def _csrf_token() -> str:
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_urlsafe(32)
+    return session["csrf_token"]
+
+
+def _valid_csrf() -> bool:
+    submitted = request.form.get("csrf_token", "")
+    expected = session.get("csrf_token", "")
+    return bool(submitted and expected and hmac.compare_digest(submitted, expected))
+
+
+@app.route("/history")
+def history():
+    return render_template(
+        "history.html",
+        history=database.history(),
+        csrf_token=_csrf_token(),
+    )
+
+
+@app.route("/history/delete", methods=["POST"])
+def delete_history():
+    if not _valid_csrf():
+        abort(400)
+    if request.form.get("confirmation", "") != "DELETE ALL DATA":
+        return render_template(
+            "history.html",
+            history=database.history(),
+            csrf_token=_csrf_token(),
+            error='Enter "DELETE ALL DATA" exactly to confirm.',
+        ), 400
+    deleted = database.delete_all()
+    return render_template(
+        "history.html",
+        history=database.history(),
+        csrf_token=_csrf_token(),
+        success=f"Deleted {deleted} stored records.",
+    )
+
+
+@app.route("/practice/select", methods=["POST"])
+def select_practice_question():
+    payload = request.get_json(silent=True) or {}
+    submitted_csrf = payload.get("csrf_token", "")
+    expected_csrf = session.get("csrf_token", "")
+    if not submitted_csrf or not expected_csrf or not hmac.compare_digest(
+        submitted_csrf, expected_csrf
+    ):
+        abort(400)
+    saved = database.mark_question_practiced(
+        str(payload.get("resume", "")),
+        str(payload.get("job_description", "")),
+        str(payload.get("question", "")),
+    )
+    if not saved:
+        return jsonify({"saved": False, "error": "Question was not found."}), 404
+    return jsonify({"saved": True})
+
+
 # sends to the results page and gets the resume and job description (POST)
 @app.route("/analyze", methods=["POST"])
 def analyze():
@@ -166,7 +231,13 @@ def interview_questions():
         return render_template("interview.html", error=message, resume=resume_text, job_description=job_description)
 
     database.save_interview_questions(resume_text, job_description, question_set.questions)
-    return render_template("interview.html", questions=question_set.questions, resume=resume_text, job_description=job_description)
+    return render_template(
+        "interview.html",
+        questions=question_set.questions,
+        resume=resume_text,
+        job_description=job_description,
+        csrf_token=_csrf_token(),
+    )
 
 
 @app.route("/interview/feedback", methods=["POST"])

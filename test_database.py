@@ -48,6 +48,60 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(feedback["user_answer_id"], answer_id)
         self.assertEqual(json.loads(feedback["feedback_json"])["clarity"]["score"], 4)
 
+    def test_exports_all_tables_with_decoded_json(self):
+        self.database.save_resume_analysis("resume", "job", {"match_score": 82})
+
+        exported = self.database.export_all()
+
+        self.assertEqual(set(exported), set(Database.TABLES))
+        self.assertEqual(exported["resume_analyses"][0]["analysis"]["match_score"], 82)
+        self.assertNotIn("analysis_json", exported["resume_analyses"][0])
+
+    def test_delete_all_removes_every_record(self):
+        question = {
+            "question": "Tell me about a project.",
+            "category": "Behavioral",
+            "focus": "Communication",
+        }
+        self.database.save_resume_analysis("resume", "job", {"match_score": 82})
+        self.database.save_interview_questions("resume", "job", [question])
+        self.database.save_answer_and_feedback(
+            "resume", "job", question["question"], "My answer", {"score": 4}
+        )
+
+        deleted = self.database.delete_all()
+
+        self.assertGreater(deleted, 0)
+        self.assertTrue(all(count == 0 for count in self.database.record_counts().values()))
+
+    def test_history_only_includes_questions_selected_for_practice(self):
+        questions = [
+            {
+                "question": "Tell me about a project.",
+                "category": "Behavioral",
+                "focus": "Communication",
+            },
+            {
+                "question": "Explain your testing approach.",
+                "category": "Technical",
+                "focus": "Testing",
+            },
+        ]
+        self.database.save_interview_questions("resume", "job", questions)
+
+        saved = self.database.mark_question_practiced(
+            "resume", "job", questions[1]["question"]
+        )
+        history = self.database.history()
+
+        self.assertTrue(saved)
+        self.assertEqual(len(history["job_descriptions"]), 1)
+        self.assertEqual(len(history["practiced_questions"]), 1)
+        self.assertEqual(
+            history["practiced_questions"][0]["question"],
+            questions[1]["question"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
