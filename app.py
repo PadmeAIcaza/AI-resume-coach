@@ -8,12 +8,16 @@ from pydantic import BaseModel, Field # define structured AI output with validat
 from werkzeug.exceptions import RequestEntityTooLarge # werkzeug is used by Flask for things like file uploads
 from interview_coach import InterviewCoach
 from pdf_utils import ResumeUploadError, extract_pdf_text # this py file receives the PDF file
+from database import Database
 
 load_dotenv()
 
 # creates the web application
 app = Flask(__name__) # __name__ tells Flask where the app file is located
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024 # 5,242,880 bytes (RequestEntityTooLarge)
+app.config["DATABASE"] = os.getenv("DATABASE_PATH", os.path.join(app.instance_path, "ai_resume.sqlite3"))
+database = Database(app.config["DATABASE"])
+database.initialize()
 
 MAX_INPUT_LENGTH = 30000
 
@@ -132,6 +136,7 @@ def analyze():
             else "Gemini could not analyze the resume right now. Please try again.") # else, print generic message
         return render_template("index.html", error=message, resume=resume_text, job_description=job_description)
 
+    database.save_resume_analysis(resume_text, job_description, feedback)
     return render_template("results.html", feedback=feedback, resume=resume_text, job_description=job_description)
 
 
@@ -160,6 +165,7 @@ def interview_questions():
         message = str(exc) if isinstance(exc, RuntimeError) else "Questions could not be generated right now. Please try again."
         return render_template("interview.html", error=message, resume=resume_text, job_description=job_description)
 
+    database.save_interview_questions(resume_text, job_description, question_set.questions)
     return render_template("interview.html", questions=question_set.questions, resume=resume_text, job_description=job_description)
 
 
@@ -185,6 +191,7 @@ def interview_feedback():
         message = str(exc) if isinstance(exc, RuntimeError) else "Your answer could not be evaluated right now. Please try again."
         return render_template("interview.html", error=message, resume=resume_text, job_description=job_description, selected_question=question, answer=answer)
 
+    database.save_answer_and_feedback(resume_text, job_description, question, answer, feedback)
     return render_template("interview.html", feedback=feedback, resume=resume_text, job_description=job_description, selected_question=question, answer=answer)
 
 # if the file is too large
