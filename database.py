@@ -172,16 +172,13 @@ class Database:
 
     def record_counts(self) -> dict[str, int]:
         with self.connect() as connection:
-            return {
-                table: int(connection.execute(
+            return {table: int(connection.execute(
                     f"SELECT COUNT(*) FROM {table}"
                 ).fetchone()[0])
                 for table in self.TABLES
             }
 
-    def mark_question_practiced(
-        self, resume_text: str, job_description: str, question: str
-    ) -> bool:
+    def mark_question_practiced(self, resume_text: str, job_description: str, question: str) -> bool:
         with self.connect() as connection:
             row = connection.execute(
                 """SELECT iq.id
@@ -207,18 +204,28 @@ class Database:
             job_descriptions = [
                 dict(row)
                 for row in connection.execute(
-                    """SELECT content, MAX(created_at) AS last_used_at
-                       FROM job_descriptions
-                       GROUP BY content
-                       ORDER BY last_used_at DESC"""
+                    """SELECT ra.id AS analysis_id, jd.content,
+                              ra.created_at
+                       FROM resume_analyses AS ra
+                       JOIN job_descriptions AS jd
+                         ON jd.id = ra.job_description_id
+                       ORDER BY ra.created_at DESC, ra.id DESC"""
                 ).fetchall()
             ]
             practiced_questions = [
                 dict(row)
                 for row in connection.execute(
-                    """SELECT iq.question, iq.category, iq.focus,
+                    """SELECT pq.id AS practice_id, iq.question,
+                              iq.category, iq.focus,
                               jd.content AS job_description,
-                              pq.practiced_at
+                              pq.practiced_at,
+                              EXISTS(
+                                  SELECT 1
+                                  FROM user_answers AS ua
+                                  JOIN ai_feedback AS af
+                                    ON af.user_answer_id = ua.id
+                                  WHERE ua.interview_question_id = iq.id
+                              ) AS has_feedback
                        FROM practiced_questions AS pq
                        JOIN interview_questions AS iq
                          ON iq.id = pq.interview_question_id
@@ -232,11 +239,66 @@ class Database:
             "practiced_questions": practiced_questions,
         }
 
+    def analysis_detail(self, analysis_id: int) -> dict[str, Any] | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                """SELECT ra.id, ra.resume_text, ra.analysis_json,
+                          ra.created_at, jd.content AS job_description
+                   FROM resume_analyses AS ra
+                   JOIN job_descriptions AS jd
+                     ON jd.id = ra.job_description_id
+                   WHERE ra.id = ?""",
+                (analysis_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        detail = dict(row)
+        detail["analysis"] = json.loads(detail.pop("analysis_json"))
+        return detail
+
+    def practice_detail(self, practice_id: int) -> dict[str, Any] | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                """SELECT pq.id, pq.practiced_at, iq.question,
+                          iq.category, iq.focus, iq.resume_text,
+                          jd.content AS job_description
+                   FROM practiced_questions AS pq
+                   JOIN interview_questions AS iq
+                     ON iq.id = pq.interview_question_id
+                   JOIN job_descriptions AS jd
+                     ON jd.id = iq.job_description_id
+                   WHERE pq.id = ?""",
+                (practice_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            detail = dict(row)
+            feedback = connection.execute(
+                """SELECT ua.answer_text, ua.created_at AS answered_at,
+                          af.feedback_json
+                   FROM user_answers AS ua
+                   JOIN ai_feedback AS af ON af.user_answer_id = ua.id
+                   JOIN practiced_questions AS pq
+                     ON pq.interview_question_id = ua.interview_question_id
+                   WHERE pq.id = ?
+                   ORDER BY ua.created_at DESC, ua.id DESC
+                   LIMIT 1""",
+                (practice_id,),
+            ).fetchone()
+        if feedback:
+            detail["answer"] = feedback["answer_text"]
+            detail["answered_at"] = feedback["answered_at"]
+            detail["feedback"] = json.loads(feedback["feedback_json"])
+        else:
+            detail["answer"] = None
+            detail["feedback"] = None
+        return detail
+
     def delete_all(self) -> int:
         with self.connect() as connection:
-            deleted = sum(
-                int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
-                for table in self.TABLES
+            deleted = sum(int(connection.execute(
+                    f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                    ) for table in self.TABLES
             )
             for table in reversed(self.TABLES):
                 connection.execute(f"DELETE FROM {table}")

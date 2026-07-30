@@ -1,6 +1,6 @@
 import os
-import hmac
-import secrets
+import hmac # used to securely compare secret values (passwords, tokens)
+import secrets # generates cryptographically secure random values (safer version of random lib)
 from typing import List # used for setting data types
 from dotenv import load_dotenv # loads environment variables
 from flask import Flask, abort, jsonify, render_template, request, session, url_for
@@ -118,11 +118,23 @@ def _valid_csrf() -> bool:
 
 @app.route("/history")
 def history():
-    return render_template(
-        "history.html",
-        history=database.history(),
-        csrf_token=_csrf_token(),
-    )
+    return render_template("history.html", history=database.history(), csrf_token=_csrf_token())
+
+
+@app.route("/history/analysis/<int:analysis_id>")
+def history_analysis(analysis_id: int):
+    detail = database.analysis_detail(analysis_id)
+    if detail is None:
+        abort(404)
+    return render_template("history_analysis.html", detail=detail)
+
+
+@app.route("/history/practice/<int:practice_id>")
+def history_practice(practice_id: int):
+    detail = database.practice_detail(practice_id)
+    if detail is None:
+        abort(404)
+    return render_template("history_practice.html", detail=detail)
 
 
 @app.route("/history/delete", methods=["POST"])
@@ -130,19 +142,9 @@ def delete_history():
     if not _valid_csrf():
         abort(400)
     if request.form.get("confirmation", "") != "DELETE ALL DATA":
-        return render_template(
-            "history.html",
-            history=database.history(),
-            csrf_token=_csrf_token(),
-            error='Enter "DELETE ALL DATA" exactly to confirm.',
-        ), 400
+        return render_template("history.html", history=database.history(), csrf_token=_csrf_token(), error='Enter "DELETE ALL DATA" exactly to confirm.'), 400
     deleted = database.delete_all()
-    return render_template(
-        "history.html",
-        history=database.history(),
-        csrf_token=_csrf_token(),
-        success=f"Deleted {deleted} stored records.",
-    )
+    return render_template("history.html", history=database.history(), csrf_token=_csrf_token(), success=f"Deleted {deleted} stored records.")
 
 
 @app.route("/practice/select", methods=["POST"])
@@ -150,15 +152,9 @@ def select_practice_question():
     payload = request.get_json(silent=True) or {}
     submitted_csrf = payload.get("csrf_token", "")
     expected_csrf = session.get("csrf_token", "")
-    if not submitted_csrf or not expected_csrf or not hmac.compare_digest(
-        submitted_csrf, expected_csrf
-    ):
+    if not submitted_csrf or not expected_csrf or not hmac.compare_digest(submitted_csrf, expected_csrf):
         abort(400)
-    saved = database.mark_question_practiced(
-        str(payload.get("resume", "")),
-        str(payload.get("job_description", "")),
-        str(payload.get("question", "")),
-    )
+    saved = database.mark_question_practiced(str(payload.get("resume", "")), str(payload.get("job_description", "")), str(payload.get("question", "")))
     if not saved:
         return jsonify({"saved": False, "error": "Question was not found."}), 404
     return jsonify({"saved": True})
@@ -231,13 +227,7 @@ def interview_questions():
         return render_template("interview.html", error=message, resume=resume_text, job_description=job_description)
 
     database.save_interview_questions(resume_text, job_description, question_set.questions)
-    return render_template(
-        "interview.html",
-        questions=question_set.questions,
-        resume=resume_text,
-        job_description=job_description,
-        csrf_token=_csrf_token(),
-    )
+    return render_template("interview.html", questions=question_set.questions, resume=resume_text, job_description=job_description, csrf_token=_csrf_token())
 
 
 @app.route("/interview/feedback", methods=["POST"])

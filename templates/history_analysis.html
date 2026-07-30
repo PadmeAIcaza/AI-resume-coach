@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saved Resume Analysis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="container">
+        <h1>Saved Resume Analysis</h1>
+        <p class="subtitle">Analysis from {{ detail.created_at }}</p>
+
+        <section class="result-card">
+            <h2>Job Description</h2>
+            <p class="preserve-lines">{{ detail.job_description }}</p>
+        </section>
+
+        <section class="result-card score-card">
+            <h2>Match Score</h2>
+            <p class="score">{{ detail.analysis.match_score }}%</p>
+            <p>{{ detail.analysis.summary }}</p>
+        </section>
+
+        <section class="result-card">
+            <h2>Matching Skills</h2>
+            <ul class="tag-list">
+                {% for skill in detail.analysis.matching_skills %}<li>{{ skill }}</li>
+                {% else %}<li>No matching skills recorded.</li>{% endfor %}
+            </ul>
+        </section>
+
+        <section class="result-card">
+            <h2>Missing Keywords</h2>
+            <ul class="tag-list missing">
+                {% for keyword in detail.analysis.missing_keywords %}<li>{{ keyword }}</li>
+                {% else %}<li>No missing keywords recorded.</li>{% endfor %}
+            </ul>
+        </section>
+
+        <section class="result-card">
+            <h2>Recommended Improvements</h2>
+            <ol>
+                {% for improvement in detail.analysis.improvements %}
+                    <li>{{ improvement }}</li>
+                {% endfor %}
+            </ol>
+        </section>
+
+        <section class="result-card">
+            <h2>Stronger Bullet Points</h2>
+            {% for bullet in detail.analysis.stronger_bullet_points %}
+                <article class="bullet-rewrite">
+                    <p><strong>Original:</strong> {{ bullet.original }}</p>
+                    <p><strong>Improved:</strong> {{ bullet.improved }}</p>
+                </article>
+            {% else %}
+                <p>No rewritten bullet points were stored.</p>
+            {% endfor %}
+        </section>
+
+        <a class="back-link" href="{{ url_for('history') }}">Back to My History</a>
+    </main>
+</body>
+</html>

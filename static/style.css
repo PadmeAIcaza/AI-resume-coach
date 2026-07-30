@@ -184,9 +184,39 @@ button:hover {
     border-bottom: 0;
 }
 
+.history-entry-link {
+    display: block;
+    border-radius: 8px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.history-entry-link:hover {
+    padding-right: 12px;
+    padding-left: 12px;
+    background: #eef1ff;
+}
+
+.history-entry-link small,
+.history-entry-link .view-label {
+    display: block;
+    margin-top: 8px;
+    color: #596273;
+}
+
+.history-entry-link .view-label {
+    color: #4b63d3;
+    font-weight: bold;
+}
+
 .history-entry p {
     margin: 6px 0;
     white-space: pre-wrap;
+}
+
+.preserve-lines {
+    white-space: pre-wrap;
+    line-height: 1.6;
 }
 
 .data-actions {

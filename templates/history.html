@@ -17,10 +17,12 @@
         <section class="result-card">
             <h2>Job Descriptions</h2>
             {% for job in history.job_descriptions %}
-                <article class="history-entry">
-                    <p>{{ job.content }}</p>
-                    <small>Last used: {{ job.last_used_at }}</small>
-                </article>
+                <a class="history-entry history-entry-link"
+                   href="{{ url_for('history_analysis', analysis_id=job.analysis_id) }}">
+                    <strong>{{ job.content|truncate(180) }}</strong>
+                    <small>Analyzed: {{ job.created_at }}</small>
+                    <span class="view-label">View full analysis →</span>
+                </a>
             {% else %}
                 <p>No job descriptions have been stored yet.</p>
             {% endfor %}
@@ -29,13 +31,18 @@
         <section class="result-card">
             <h2>Practiced Questions</h2>
             {% for item in history.practiced_questions %}
-                <article class="history-entry">
+                <a class="history-entry history-entry-link"
+                   href="{{ url_for('history_practice', practice_id=item.practice_id) }}">
                     <span class="question-category">{{ item.category }}</span>
                     <h3>{{ item.question }}</h3>
-                    <p><strong>What it tests:</strong> {{ item.focus }}</p>
-                    <p><strong>Job description:</strong> {{ item.job_description }}</p>
-                    <small>Selected: {{ item.practiced_at }}</small>
-                </article>
+                    <small>
+                        {% if item.has_feedback %}
+                            View answer feedback →
+                        {% else %}
+                            Selected for practice — no answer submitted yet
+                        {% endif %}
+                    </small>
+                </a>
             {% else %}
                 <p>No questions practiced yet. Questions appear here after you click “Practice This Question.”</p>
             {% endfor %}

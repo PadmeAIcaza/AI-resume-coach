@@ -1,8 +1,7 @@
 import json
-import tempfile
-import unittest
+import tempfile # creates temporary files and folders that disappear automatically (so my program wont get full of old test databases)
+import unittest #
 from pathlib import Path
-
 from database import Database
 
 
@@ -65,9 +64,7 @@ class DatabaseTests(unittest.TestCase):
         }
         self.database.save_resume_analysis("resume", "job", {"match_score": 82})
         self.database.save_interview_questions("resume", "job", [question])
-        self.database.save_answer_and_feedback(
-            "resume", "job", question["question"], "My answer", {"score": 4}
-        )
+        self.database.save_answer_and_feedback("resume", "job", question["question"], "My answer", {"score": 4})
 
         deleted = self.database.delete_all()
 
@@ -87,20 +84,52 @@ class DatabaseTests(unittest.TestCase):
                 "focus": "Testing",
             },
         ]
+        self.database.save_resume_analysis("resume", "job", {"match_score": 80})
         self.database.save_interview_questions("resume", "job", questions)
 
-        saved = self.database.mark_question_practiced(
-            "resume", "job", questions[1]["question"]
-        )
+        saved = self.database.mark_question_practiced("resume", "job", questions[1]["question"])
         history = self.database.history()
 
         self.assertTrue(saved)
         self.assertEqual(len(history["job_descriptions"]), 1)
         self.assertEqual(len(history["practiced_questions"]), 1)
-        self.assertEqual(
-            history["practiced_questions"][0]["question"],
-            questions[1]["question"],
+        self.assertEqual(history["practiced_questions"][0]["question"], questions[1]["question"])
+
+    def test_history_details_restore_analysis_and_answer_feedback(self):
+        analysis_id = self.database.save_resume_analysis("resume", "job", {
+                "match_score": 82,
+                "summary": "Good match",
+                "matching_skills": ["Python"],
+                "missing_keywords": ["AWS"],
+                "improvements": ["Add outcomes"],
+                "stronger_bullet_points": [],
+            }
         )
+        question = {
+            "question": "Tell me about a project.",
+            "category": "Behavioral",
+            "focus": "Communication",
+        }
+        self.database.save_interview_questions("resume", "job", [question])
+        self.database.mark_question_practiced("resume", "job", question["question"])
+        self.database.save_answer_and_feedback("resume", "job", question["question"], "My answer",
+            {
+                "relevance": {"score": 4, "feedback": "Relevant"},
+                "clarity": {"score": 3, "feedback": "Mostly clear"},
+                "technical_depth": {"score": 2, "feedback": "Add detail"},
+                "star_format": {"score": 3, "feedback": "Add result"},
+                "areas_to_improve": ["Add a measurable result"],
+                "improved_answer": "A stronger answer",
+            },
+        )
+        practice_id = self.database.history()["practiced_questions"][0]["practice_id"]
+
+        analysis = self.database.analysis_detail(analysis_id)
+        practice = self.database.practice_detail(practice_id)
+
+        self.assertEqual(analysis["analysis"]["match_score"], 82)
+        self.assertEqual(practice["answer"], "My answer")
+        self.assertEqual(practice["feedback"]["clarity"]["score"], 3)
 
 
 if __name__ == "__main__":

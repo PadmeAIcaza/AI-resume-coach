@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saved Practice Feedback</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="container">
+        <h1>Saved Practice Question</h1>
+        <p class="subtitle">Selected for practice on {{ detail.practiced_at }}</p>
+
+        <section class="result-card">
+            <span class="question-category">{{ detail.category }}</span>
+            <h2>{{ detail.question }}</h2>
+            <p><strong>What it tests:</strong> {{ detail.focus }}</p>
+            <p><strong>Job description:</strong></p>
+            <p class="preserve-lines">{{ detail.job_description }}</p>
+        </section>
+
+        {% if detail.feedback %}
+            <section class="result-card">
+                <h2>Your Submitted Answer</h2>
+                <p class="preserve-lines">{{ detail.answer }}</p>
+            </section>
+
+            <section class="result-card">
+                <h2>Scores and Feedback</h2>
+                <div class="feedback-grid">
+                    {% for label, dimension in [
+                        ('Relevance', detail.feedback.relevance),
+                        ('Clarity', detail.feedback.clarity),
+                        ('Technical Depth', detail.feedback.technical_depth),
+                        ('STAR Format', detail.feedback.star_format)
+                    ] %}
+                        <article class="feedback-dimension">
+                            <div class="dimension-heading">
+                                <h3>{{ label }}</h3>
+                                <span class="dimension-score">{{ dimension.score }}/5</span>
+                            </div>
+                            <div class="score-track" aria-label="{{ label }} score: {{ dimension.score }} out of 5">
+                                <span style="width: {{ dimension.score * 20 }}%"></span>
+                            </div>
+                            <p>{{ dimension.feedback }}</p>
+                        </article>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="result-card">
+                <h2>Areas to Improve</h2>
+                <ol>
+                    {% for area in detail.feedback.areas_to_improve %}<li>{{ area }}</li>{% endfor %}
+                </ol>
+            </section>
+
+            <section class="result-card improved-answer">
+                <h2>Stronger Example Answer</h2>
+                <p>{{ detail.feedback.improved_answer }}</p>
+            </section>
+        {% else %}
+            <p class="error-message">
+                You selected this question for practice but have not submitted an answer for feedback yet.
+            </p>
+        {% endif %}
+
+        <a class="back-link" href="{{ url_for('history') }}">Back to My History</a>
+    </main>
+</body>
+</html>
