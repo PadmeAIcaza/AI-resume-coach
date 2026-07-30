@@ -18,6 +18,7 @@
         {% if questions %}
             <section class="result-card">
                 <h2>Choose a Question</h2>
+                <p class="question-progress" id="question-progress">Select a question to begin practicing.</p>
                 <div class="question-list">
                     {% for item in questions %}
                         <article class="question-card">
@@ -35,7 +36,8 @@
         {% if questions or selected_question %}
             <section class="result-card" id="answer-section">
                 <h2>Your Answer</h2>
-                <form action="{{ url_for('interview_feedback') }}" method="POST">
+                <form action="{{ url_for('interview_feedback') }}" method="POST"
+                      data-loading-text="Reviewing your answer…">
                     <input type="hidden" name="resume" value="{{ resume }}">
                     <input type="hidden" name="job_description" value="{{ job_description }}">
                     <label for="question">Interview Question</label>
@@ -65,7 +67,7 @@
                                 <span class="dimension-score">{{ dimension.score }}/5</span>
                             </div>
                             <div class="score-track" aria-label="{{ label }} score: {{ dimension.score }} out of 5">
-                                <span style="width: {{ dimension.score * 20 }}%"></span>
+                                <span data-score="{{ dimension.score * 20 }}"></span>
                             </div>
                             <p>{{ dimension.feedback }}</p>
                         </article>
@@ -101,6 +103,17 @@
         document.querySelectorAll(".choose-question").forEach((button) => {
             button.addEventListener("click", async () => {
                 document.getElementById("question").value = button.dataset.question;
+                document.getElementById("question").dispatchEvent(new Event("input"));
+                document.querySelectorAll(".question-card").forEach((card) => card.classList.remove("is-selected"));
+                document.querySelectorAll(".choose-question").forEach((item) => {
+                    item.textContent = "Practice This Question";
+                    item.removeAttribute("aria-pressed");
+                });
+                button.closest(".question-card").classList.add("is-selected");
+                button.textContent = "Selected";
+                button.setAttribute("aria-pressed", "true");
+                const progress = document.getElementById("question-progress");
+                if (progress) progress.textContent = "Question selected — write your response below.";
                 document.getElementById("answer-section").scrollIntoView({ behavior: "smooth" });
                 document.getElementById("answer").focus();
                 try {
@@ -118,5 +131,6 @@
             });
         });
     </script>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

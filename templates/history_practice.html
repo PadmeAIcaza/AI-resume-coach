@@ -40,7 +40,7 @@
                                 <span class="dimension-score">{{ dimension.score }}/5</span>
                             </div>
                             <div class="score-track" aria-label="{{ label }} score: {{ dimension.score }} out of 5">
-                                <span style="width: {{ dimension.score * 20 }}%"></span>
+                                <span data-score="{{ dimension.score * 20 }}"></span>
                             </div>
                             <p>{{ dimension.feedback }}</p>
                         </article>
@@ -67,5 +67,6 @@
 
         <a class="back-link" href="{{ url_for('history') }}">Back to My History</a>
     </main>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

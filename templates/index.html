@@ -25,7 +25,8 @@
             <p class="error-message">{{ error }}</p>
         {% endif %}
 
-        <form action="{{ url_for('analyze') }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ url_for('analyze') }}" method="POST" enctype="multipart/form-data"
+              data-loading-text="Analyzing with AI…">
             <div class="form-group">
                 <label for="resume_file">Upload Resume PDF</label>
                 <input
@@ -34,6 +35,10 @@
                     type="file"
                     accept=".pdf,application/pdf"
                 >
+                <div class="file-preview" id="file-preview" hidden>
+                    <div><strong data-file-name></strong><span data-file-size></span></div>
+                    <button type="button" class="file-remove" data-clear-file>Remove</button>
+                </div>
                 <p class="field-help">
                     PDF only, up to 5 MB and 5 pages. Scanned PDFs need OCR first.
                 </p>
@@ -74,6 +79,7 @@
         <a class="history-button" href="{{ url_for('history') }}">View My History</a>
 
     </main>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
 
 </body>
 </html>

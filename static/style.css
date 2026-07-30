@@ -115,6 +115,57 @@ button:hover {
     background-color: #394db1;
 }
 
+button:disabled {
+    cursor: wait;
+    opacity: 0.75;
+}
+
+.spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    margin-right: 9px;
+    border: 3px solid rgba(255, 255, 255, 0.45);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    vertical-align: -3px;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.character-counter {
+    margin: 6px 2px 0;
+    color: #687080;
+    font-size: 13px;
+    text-align: right;
+}
+
+.character-counter.near-limit {
+    color: #a15c00;
+    font-weight: bold;
+}
+
+.file-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 12px 14px;
+    border: 1px solid #cdd4f7;
+    border-radius: 8px;
+    background: #f2f4ff;
+}
+
+.file-preview[hidden] { display: none; }
+.file-preview strong,
+.file-preview span { display: block; overflow-wrap: anywhere; }
+.file-preview span { margin-top: 3px; color: #596273; font-size: 13px; }
+.file-remove { width: auto; padding: 8px 10px; background: #687080; font-size: 13px; }
+
 .error-message {
     padding: 12px;
     border-radius: 8px;
@@ -146,6 +197,18 @@ button:hover {
 
 .back-link:hover {
     text-decoration: underline;
+}
+
+.score-summary {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 18px;
+}
+
+.score-track-large {
+    height: 14px;
+    margin: 0;
 }
 
 .success-message {
@@ -332,6 +395,21 @@ button:hover {
     line-height: 1.4;
 }
 
+.question-card {
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.question-card.is-selected {
+    border-color: #4b63d3;
+    box-shadow: 0 0 0 3px rgba(75, 99, 211, 0.12);
+    transform: translateY(-2px);
+}
+
+.question-progress {
+    margin: -4px 0 16px;
+    color: #596273;
+}
+
 .question-category {
     display: inline-block;
     padding: 5px 9px;
@@ -389,6 +467,8 @@ button:hover {
     height: 100%;
     border-radius: inherit;
     background-color: #4b63d3;
+    width: 0;
+    transition: width 0.8s ease-out;
 }
 
 .improved-answer {
@@ -412,4 +492,15 @@ button:hover {
     .feedback-grid {
         grid-template-columns: 1fr;
     }
+
+    .score-summary {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spinner { animation-duration: 1.5s; }
+    .score-track span,
+    .question-card { transition: none; }
 }
