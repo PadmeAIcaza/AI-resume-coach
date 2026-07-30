@@ -13,8 +13,16 @@
 </head>
 
 <body>
-
-    <main class="container">
+    <header class="site-header">
+        <a class="brand" href="{{ url_for('home') }}" aria-label="PurrspectiveAI home">
+            <img src="{{ url_for('static', filename='purrspective.png') }}" alt="PurrspectiveAI">
+        </a>
+        <nav aria-label="Main navigation">
+            <a class="active" href="{{ url_for('home') }}">Resume Coach</a>
+            <a href="{{ url_for('history') }}">My History</a>
+        </nav>
+    </header>
+    <main class="container home-page">
         <h1>AI Resume Coach</h1>
         <p class="subtitle">
             Compare your resume with a job description and receive
@@ -27,35 +35,40 @@
 
         <form action="{{ url_for('analyze') }}" method="POST" enctype="multipart/form-data"
               data-loading-text="Analyzing with AI…">
-            <div class="form-group">
-                <label for="resume_file">Upload Resume PDF</label>
-                <input
-                    id="resume_file"
-                    name="resume_file"
-                    type="file"
-                    accept=".pdf,application/pdf"
-                >
-                <div class="file-preview" id="file-preview" hidden>
-                    <div><strong data-file-name></strong><span data-file-size></span></div>
-                    <button type="button" class="file-remove" data-clear-file>Remove</button>
+            <div class="resume-source-grid">
+                <div class="form-group upload-panel">
+                    <label for="resume_file">Upload Resume PDF</label>
+                    <div class="file-drop">
+                        <span class="upload-icon">⇧</span>
+                        <strong>Drag &amp; drop your PDF here</strong>
+                        <span>PDF only • Up to 5 MB • 5 pages max</span>
+                        <input
+                            id="resume_file"
+                            name="resume_file"
+                            type="file"
+                            accept=".pdf,application/pdf"
+                        >
+                    </div>
+                    <div class="file-preview" id="file-preview" hidden>
+                        <div><strong data-file-name></strong><span data-file-size></span></div>
+                        <button type="button" class="file-remove" data-clear-file>Remove</button>
+                    </div>
+                    <p class="field-help">Scanned PDFs need OCR first.</p>
                 </div>
-                <p class="field-help">
-                    PDF only, up to 5 MB and 5 pages. Scanned PDFs need OCR first.
-                </p>
-
-                <div class="divider"><span>or paste text</span></div>
-
-                <label for="resume">Resume Text</label>
-                <textarea
-                    id="resume"
-                    name="resume"
-                    rows="12"
-                    maxlength="30000"
-                    placeholder="Paste your resume here..."
-                >{{ resume|default('', true) }}</textarea>
+                <div class="source-or" aria-hidden="true">OR</div>
+                <div class="form-group">
+                    <label for="resume">Paste Resume Text</label>
+                    <textarea
+                        id="resume"
+                        name="resume"
+                        rows="9"
+                        maxlength="30000"
+                        placeholder="Paste your resume here..."
+                    >{{ resume|default('', true) }}</textarea>
+                </div>
             </div>
 
-            <div class="form-group">
+            <div class="form-group job-panel">
                 <label for="job_description">
                     Job Description
                 </label>
@@ -63,7 +76,7 @@
                 <textarea
                     id="job_description"
                     name="job_description"
-                    rows="12"
+                    rows="9"
                     maxlength="30000"
                     placeholder="Paste the job description here..."
                     required
@@ -71,12 +84,12 @@
             </div>
 
             <button type="submit">
-                Analyze Resume
+                ✨&nbsp; Analyze Resume
             </button>
 
         </form>
 
-        <a class="history-button" href="{{ url_for('history') }}">View My History</a>
+
 
     </main>
     <script src="{{ url_for('static', filename='app.js') }}"></script>

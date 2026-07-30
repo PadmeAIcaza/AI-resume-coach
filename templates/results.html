@@ -7,18 +7,32 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <header class="site-header">
+        <a class="brand" href="{{ url_for('home') }}" aria-label="PurrspectiveAI home">
+            <img src="{{ url_for('static', filename='purrspective.png') }}" alt="PurrspectiveAI">
+        </a>
+        <nav aria-label="Main navigation">
+            <a href="{{ url_for('home') }}">Resume Coach</a>
+            <a href="{{ url_for('history') }}">My History</a>
+        </nav>
+    </header>
     <main class="container">
         <h1>Resume Analysis</h1>
 
         <section class="result-card score-card">
             <h2>Match Score</h2>
             <div class="score-summary">
-                <p class="score">{{ feedback.match_score }}%</p>
-                <div class="score-track score-track-large" aria-label="Resume match score: {{ feedback.match_score }} percent">
-                    <span data-score="{{ feedback.match_score }}"></span>
+                <div class="score-ring" style="--score: {{ feedback.match_score }}">
+                    <p class="score">{{ feedback.match_score }}%</p>
+                </div>
+                <div>
+                    <h3>Great foundation!</h3>
+                    <p>{{ feedback.summary }}</p>
+                    <div class="score-track score-track-large" aria-label="Resume match score: {{ feedback.match_score }} percent">
+                        <span data-score="{{ feedback.match_score }}"></span>
+                    </div>
                 </div>
             </div>
-            <p>{{ feedback.summary }}</p>
         </section>
 
         <section class="result-card">

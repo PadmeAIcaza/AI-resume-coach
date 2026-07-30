@@ -7,6 +7,15 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <header class="site-header">
+        <a class="brand" href="{{ url_for('home') }}" aria-label="PurrspectiveAI home">
+            <img src="{{ url_for('static', filename='purrspective.png') }}" alt="PurrspectiveAI">
+        </a>
+        <nav aria-label="Main navigation">
+            <a href="{{ url_for('home') }}">Resume Coach</a>
+            <a class="active" href="{{ url_for('history') }}">My History</a>
+        </nav>
+    </header>
     <main class="container">
         <h1>Saved Practice Question</h1>
         <p class="subtitle">Selected for practice on {{ detail.practiced_at }}</p>
